@@ -9,6 +9,7 @@ install_ext () {
     local ext_dir=$(basename $(php-config --extension-dir))
     if [[ -f "$ext_ini" ]]; then
         if [[ ! -f "$PHP_EXT_DIR/$ext.so" ]]; then
+            echo "Getting ${S3_URL}/extensions/${ext_dir}/${ext}.tar.gz ..."
             curl --silent --location "${S3_URL}/extensions/${ext_dir}/${ext}.tar.gz" | tar xz -C $BUILD_DIR/.heroku/php
             echo "- ${ext} (${reason}; downloaded, using 'ext-${ext}.ini')" | indent
         else
