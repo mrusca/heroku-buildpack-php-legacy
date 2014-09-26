@@ -50,6 +50,7 @@ LD_LIBRARY_PATH=${OUT_PREFIX} ./configure \
     --with-openssl \
     --with-pgsql \
     --with-pdo-pgsql \
+    --with-pdo-dblib=${OUT_PREFIX} \
     --with-readline \
     --enable-sockets \
     --enable-zip \
