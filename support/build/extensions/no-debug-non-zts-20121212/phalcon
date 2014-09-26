@@ -33,6 +33,7 @@ popd
 pushd cphalcon/build
     # Run the standard 'install' command, which sets some CFLAGS for us and other bits.
     # It also runs phpize, configure, make, and make install
+    chmod +x ./install
     ./install
 popd
 
