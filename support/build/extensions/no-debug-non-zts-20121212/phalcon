@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Build Path: /app/.heroku/php/
+# Build Deps: php-5.5.11
+
+OUT_PREFIX=$1
+
+# fail hard
+set -o pipefail
+# fail harder
+set -eux
+
+DEFAULT_VERSION=1.2.3
+dep_version=${VERSION:-$DEFAULT_VERSION}
+
+echo "-----> Building ext/phalcon ${dep_version}..."
+
+export PATH=${OUT_PREFIX}/bin:${PATH}
+
+BRANCH=phalcon-v${dep_version}
+# WARNING: git <= 1.7.10 does not support cloning a branch directly
+# git clone --depth 1 -b $BRANCH \
+#    git://github.com/phalcon/cphalcon.git
+
+# A vanilla 'clone' + 'checkout' operation will work but will be slower
+git clone git://github.com/phalcon/cphalcon.git
+pushd cphalcon
+    git checkout $BRANCH
+popd
+
+# @TODO Verify that we have the correct branch.
+# because git will clone HEAD if $BRANCH is not found.
+
+pushd cphalcon/build
+    # Run the standard 'install' command, which sets some CFLAGS for us and other bits.
+    # It also runs phpize, configure, make, and make install
+    ./install
+popd
+
+echo "-----> Done."
+

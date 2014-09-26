@@ -1,0 +1,50 @@
+#!/bin/bash
+# Build Path: /app/.heroku/php/
+
+OUT_PREFIX=$1
+
+# fail hard
+set -o pipefail
+# fail harder
+set -eux
+
+DEFAULT_VERSION="0.91"
+dep_version=${VERSION:-$DEFAULT_VERSION}
+dep_dirname=freetds-${dep_version}
+dep_archive_name=${dep_dirname}.tar.gz
+dep_url=ftp://ftp.freetds.org/pub/freetds/stable/${dep_archive_name}
+
+echo "-----> Building freetds ${dep_version}"
+
+curl -L ${dep_url} | tar xz
+
+# Create explicit freetds.conf file with a tds version set to 7.0
+FREETDS_CONF=freetds.conf
+cat > $dep_dirname/$FREETDS_CONF <<EOF
+; Generated $(date)
+[global]
+        # TDS protocol version
+        tds version = 7.0
+        port = 1433
+;       dump file = /tmp/freetds.log
+;       debug flags = 0xffff
+;       timeout = 10
+;       connect timeout = 10
+        text size = 64512
+EOF
+
+pushd ${dep_dirname}
+./configure --prefix=${OUT_PREFIX} \
+    --enable-msdblib --with-tdsver=7.0 \
+    --disable-odbc --disable-apps \
+    --disable-server --disable-debug \
+    --disable-pool
+
+make -s -j 9
+make install -s
+popd
+
+mkdir -p ${OUT_PREFIX}/etc || true
+cp -v $dep_dirname/$FREETDS_CONF ${OUT_PREFIX}/etc/
+
+echo "-----> Done."
