@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build Path: /app/.heroku/php/
-# Build Deps: libraries/zlib, libraries/libmcrypt, libraries/icu, libraries/gettext
+# Build Deps: libraries/zlib, libraries/libmcrypt, libraries/icu, libraries/gettext, libraries/freetds
 
 VERSION=5.5.13
 
