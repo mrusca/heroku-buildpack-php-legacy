@@ -26,14 +26,18 @@ http {
     }
     
     server {
+        # TODO: use X-Forwarded-Host? http://comments.gmane.org/gmane.comp.web.nginx.english/2170
+        server_name localhost;
         listen <?=getenv('PORT')?:'8080'?>;
+        # FIXME: breaks redirects with foreman
+        port_in_redirect off;
         
-        root <?=getenv('DOCUMENT_ROOT')?:getenv('HEROKU_APP_DIR')?:getcwd()?>;
+        root "<?=getenv('DOCUMENT_ROOT')?:getenv('HEROKU_APP_DIR')?:getcwd()?>";
         
         error_log stderr;
         access_log /tmp/heroku.nginx_access.<?=getenv('PORT')?:'8080'?>.log;
         
-        include <?=getenv('HEROKU_PHP_NGINX_CONFIG_INCLUDE')?>;
+        include "<?=getenv('HEROKU_PHP_NGINX_CONFIG_INCLUDE')?>";
         
         # restrict access to hidden files, just in case
         location ~ /\. {
@@ -47,7 +51,7 @@ http {
             fastcgi_split_path_info ^(.+\.php)(/.*)$;
             fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
             # try_files resets $fastcgi_path_info, see http://trac.nginx.org/nginx/ticket/321, so we use the if instead
-            fastcgi_param PATH_INFO $fastcgi_path_info;
+            fastcgi_param PATH_INFO $fastcgi_path_info if_not_empty;
             
             if (!-f $document_root$fastcgi_script_name) {
                 # check if the script exists
