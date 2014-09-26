@@ -115,17 +115,17 @@ LoadModule log_config_module libexec/mod_log_config.so
 #LoadModule logio_module libexec/mod_logio.so
 LoadModule env_module libexec/mod_env.so
 #LoadModule mime_magic_module libexec/mod_mime_magic.so
-#LoadModule expires_module libexec/mod_expires.so
+LoadModule expires_module libexec/mod_expires.so
 LoadModule headers_module libexec/mod_headers.so
 #LoadModule usertrack_module libexec/mod_usertrack.so
 #LoadModule unique_id_module libexec/mod_unique_id.so
 LoadModule setenvif_module libexec/mod_setenvif.so
 LoadModule version_module libexec/mod_version.so
-#LoadModule remoteip_module libexec/mod_remoteip.so
+LoadModule remoteip_module libexec/mod_remoteip.so
 LoadModule proxy_module libexec/mod_proxy.so
 #LoadModule proxy_connect_module libexec/mod_proxy_connect.so
 #LoadModule proxy_ftp_module libexec/mod_proxy_ftp.so
-#LoadModule proxy_http_module libexec/mod_proxy_http.so
+LoadModule proxy_http_module libexec/mod_proxy_http.so
 LoadModule proxy_fcgi_module libexec/mod_proxy_fcgi.so
 #LoadModule proxy_scgi_module libexec/mod_proxy_scgi.so
 #LoadModule proxy_fdpass_module libexec/mod_proxy_fdpass.so
@@ -163,6 +163,13 @@ LoadModule dir_module libexec/mod_dir.so
 #LoadModule userdir_module libexec/mod_userdir.so
 LoadModule alias_module libexec/mod_alias.so
 LoadModule rewrite_module libexec/mod_rewrite.so
+
+<IfVersion < 2.4.10>
+    # special treatment for Apache < 2.4.10 so we can SetHandler to mod_proxy_fcgi
+    # taken from https://gist.github.com/progandy/6ed4eeea60f6277c3e39
+    # the functionality is included in Apache 2.4.10+
+    LoadModule proxy_handler_module libexec/mod_proxy_handler.so
+</IfVersion>
 
 <IfModule unixd_module>
 #
