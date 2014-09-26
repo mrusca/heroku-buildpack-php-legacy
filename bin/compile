@@ -34,12 +34,17 @@ set -eu
 # move hidden files too, just in case
 shopt -s dotglob
 
+# set -x
+
 STACK=${STACK:-cedar} # Anvil has none
 BUILD_DIR=$1
 CACHE_DIR=$2/php
 mkdir -p "$CACHE_DIR"
 ENV_DIR=${3:-} # Anvil has none
 BP_DIR=$(cd $(dirname $0); cd ..; pwd)
+
+# Allow overriding the base S3 URL for self-hosted libraries, extensions or other assets
+BASE_S3_URL=${BASE_S3_URL:-https://lang-php.s3.amazonaws.com/}
 
 # convenience functions
 source $BP_DIR/bin/common.sh
@@ -58,7 +63,7 @@ fi
 if [[ "$STACK" == "cedar-14" ]]; then
     RTVS_URL="14" # cedar-14 apps use the version selector service that runs on cedar-14
 fi
-S3_URL="https://lang-php.s3.amazonaws.com/dist-${STACK}-${S3_URL:-"master"}"
+S3_URL="${BASE_S3_URL}dist-${STACK}-${S3_URL:-"master"}"
 RTVS_URL="http://php-runtime-version-selector${RTVS_URL:-}.herokuapp.com"
 
 cd $BUILD_DIR
@@ -146,27 +151,37 @@ fi
 status "Installing system packages..."
 
 # we need to run things in here, set it up!
-ln -s $BUILD_DIR/.heroku /app/.heroku
+if [[ ! -d /app/.heroku ]]; then
+    ln -s $BUILD_DIR/.heroku /app/.heroku
+fi
 export PATH=/app/.heroku/php/bin:$PATH
 
 if [[ "${PHP_VERSION}" ]]; then
-    PHP_DIST_URL="$S3_URL/php-$PHP_VERSION.tar.gz"
-    echo "- PHP $PHP_VERSION" | indent
-    curl --silent --location "$PHP_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
+    if [[ ! -f $CACHE_DIR/php_version || $(cat $CACHE_DIR/php_version) != "$PHP_VERSION" ]]; then
+        PHP_DIST_URL="$S3_URL/php-$PHP_VERSION.tar.gz"
+        echo "- PHP $PHP_VERSION" | indent
+        curl --silent --location "$PHP_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
+        # update config files
+        mkdir -p $BUILD_DIR/.heroku/php/etc/php
+        cp $BP_DIR/conf/php/php.ini $BUILD_DIR/.heroku/php/etc/php
+        cp $BP_DIR/conf/php/php-fpm.conf $BUILD_DIR/.heroku/php/etc/php
+        mkdir -p $BUILD_DIR/.heroku/php/etc/php/conf.d
+        # remember the version for future upgrade handling
+        echo $PHP_VERSION > $CACHE_DIR/php_version
+    else
+        echo "- PHP $PHP_VERSION detected" | indent
+    fi
     PHP_EXT_DIR=$(php-config --extension-dir)
-    # update config files
-    mkdir -p $BUILD_DIR/.heroku/php/etc/php
-    cp $BP_DIR/conf/php/php.ini $BUILD_DIR/.heroku/php/etc/php
-    cp $BP_DIR/conf/php/php-fpm.conf $BUILD_DIR/.heroku/php/etc/php
-    mkdir -p $BUILD_DIR/.heroku/php/etc/php/conf.d
-    # remember the version for future upgrade handling
-    echo $PHP_VERSION > $CACHE_DIR/php_version
 fi
 if [[ "${HHVM_VERSION}" ]]; then
-    HHVM_DIST_URL="$S3_URL/hhvm-$HHVM_VERSION.tar.gz"
-    echo "- HHVM $HHVM_VERSION" | indent
-    curl --silent --location "$HHVM_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
-    echo $HHVM_VERSION > $CACHE_DIR/hhvm_version
+    if [[ ! -f $CACHE_DIR/hhvm_version || $(cat $CACHE_DIR/hhvm_version) != "$HHVM_VERSION" ]]; then
+        HHVM_DIST_URL="$S3_URL/hhvm-$HHVM_VERSION.tar.gz"
+        echo "- HHVM $HHVM_VERSION" | indent
+        curl --silent --location "$HHVM_DIST_URL" | tar vxz -C $BUILD_DIR/.heroku/php
+        echo $HHVM_VERSION > $CACHE_DIR/hhvm_version
+    else
+        echo "- HHVM $HHVM_VERSION detected" | indent
+    fi
     # make HHVM accessible
     export PATH=$PATH:/app/.heroku/php/usr/bin
     # so it'll start. remember to use the full path to the binary, or we'll get an infinite loop
@@ -175,22 +190,31 @@ if [[ "${HHVM_VERSION}" ]]; then
 fi
 
 APACHE_VERSION="2.4.10"
-APACHE_DIST_URL="$S3_URL/apache-$APACHE_VERSION.tar.gz"
-echo "- Apache $APACHE_VERSION" | indent
-curl --silent --location "$APACHE_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
-# Apache; copy in our config
-cp $BP_DIR/conf/apache2/httpd.conf.default $BUILD_DIR/.heroku/php/etc/apache2/httpd.conf
-# remember the version for future upgrade handling
-echo $APACHE_VERSION > $CACHE_DIR/apache2_version
+if [[ ! -f $CACHE_DIR/apache2_version || $(cat $CACHE_DIR/apache2_version) != "$APACHE_VERSION" ]]; then
+    APACHE_DIST_URL="$S3_URL/apache-$APACHE_VERSION.tar.gz"
+    echo "- Apache $APACHE_VERSION" | indent
+    curl --silent --location "$APACHE_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
+    # Apache; copy in our config
+    cp $BP_DIR/conf/apache2/httpd.conf.default $BUILD_DIR/.heroku/php/etc/apache2/httpd.conf
+    # remember the version for future upgrade handling
+    echo $APACHE_VERSION > $CACHE_DIR/apache2_version
+else
+    echo "- Apache $APACHE_VERSION detected" | indent
+fi
 
 NGINX_VERSION="1.6.0"
-NGINX_DIST_URL="$S3_URL/nginx-$NGINX_VERSION.tar.gz"
-echo "- Nginx $NGINX_VERSION" | indent
-curl --silent --location "$NGINX_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
-# nginx; copy in our config
-cp $BP_DIR/conf/nginx/nginx.conf.default $BUILD_DIR/.heroku/php/etc/nginx/nginx.conf
-# remember the version for future upgrade handling
-echo $NGINX_VERSION > $CACHE_DIR/nginx_version
+if [[ ! -f $CACHE_DIR/nginx_version || $(cat $CACHE_DIR/nginx_version) != "$NGINX_VERSION" ]]; then
+    NGINX_DIST_URL="$S3_URL/nginx-$NGINX_VERSION.tar.gz"
+    echo "- Nginx $NGINX_VERSION" | indent
+    curl --silent --location "$NGINX_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
+    # nginx; copy in our config
+    cp $BP_DIR/conf/nginx/nginx.conf.default $BUILD_DIR/.heroku/php/etc/nginx/nginx.conf
+    # remember the version for future upgrade handling
+    echo $NGINX_VERSION > $CACHE_DIR/nginx_version
+else
+    echo "- Nginx $NGINX_VERSION detected" | indent
+fi
+
 
 # handle extensions for PHP
 if [[ "${PHP_VERSION}" ]]; then
@@ -304,7 +328,7 @@ relbin=$(python -c "import os.path; print os.path.relpath('$hbpdir', '$composer_
 relbins=$(cat $BP_DIR/composer.json | python -c 'from __future__ import print_function; import sys, json; { print(sys.argv[1]+"/"+bin) for bin in json.load(sys.stdin)["bin"] }' $relbin)
 # link to bins
 cd $BUILD_DIR/$composer_bindir
-ln -s $relbins .
+ln -s $relbins . 2>/dev/null || true
 cd $BUILD_DIR
 
 # Update the PATH
