@@ -33,7 +33,7 @@ set -o pipefail
 set -eu
 # move hidden files too, just in case
 shopt -s dotglob
-
+# enable debugging
 # set -x
 
 STACK=${STACK:-cedar} # Anvil has none
@@ -65,6 +65,7 @@ if [[ "$STACK" == "cedar-14" ]]; then
 fi
 S3_URL="${BASE_S3_URL}dist-${STACK}-${S3_URL:-"master"}"
 RTVS_URL="http://php-runtime-version-selector${RTVS_URL:-}.herokuapp.com"
+notice "Using S3 URL: $S3_URL"
 
 cd $BUILD_DIR
 
@@ -158,7 +159,7 @@ export PATH=/app/.heroku/php/bin:$PATH
 
 if [[ "${PHP_VERSION}" ]]; then
     PHP_DIST_URL="$S3_URL/php-$PHP_VERSION.tar.gz"
-    echo "- PHP $PHP_VERSION" | indent
+    echo "- PHP $PHP_VERSION ($PHP_DIST_URL)" | indent
     curl --silent --location "$PHP_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
     # update config files
     mkdir -p $BUILD_DIR/.heroku/php/etc/php
@@ -171,7 +172,7 @@ if [[ "${PHP_VERSION}" ]]; then
 fi
 if [[ "${HHVM_VERSION}" ]]; then
     HHVM_DIST_URL="$S3_URL/hhvm-$HHVM_VERSION.tar.gz"
-    echo "- HHVM $HHVM_VERSION" | indent
+    echo "- HHVM $HHVM_VERSION ($HHVM_DIST_URL)" | indent
     curl --silent --location "$HHVM_DIST_URL" | tar vxz -C $BUILD_DIR/.heroku/php
     echo $HHVM_VERSION > $CACHE_DIR/hhvm_version
     # make HHVM accessible
@@ -183,7 +184,7 @@ fi
 
 APACHE_VERSION="2.4.10"
 APACHE_DIST_URL="$S3_URL/apache-$APACHE_VERSION.tar.gz"
-echo "- Apache $APACHE_VERSION" | indent
+echo "- Apache $APACHE_VERSION ($APACHE_DIST_URL)" | indent
 curl --silent --location "$APACHE_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
 # Apache; copy in our config
 cp $BP_DIR/conf/apache2/httpd.conf.default $BUILD_DIR/.heroku/php/etc/apache2/httpd.conf
@@ -192,7 +193,7 @@ echo $APACHE_VERSION > $CACHE_DIR/apache2_version
 
 NGINX_VERSION="1.6.0"
 NGINX_DIST_URL="$S3_URL/nginx-$NGINX_VERSION.tar.gz"
-echo "- Nginx $NGINX_VERSION" | indent
+echo "- Nginx $NGINX_VERSION ($NGINX_DIST_URL)" | indent
 curl --silent --location "$NGINX_DIST_URL" | tar xz -C $BUILD_DIR/.heroku/php
 # nginx; copy in our config
 cp $BP_DIR/conf/nginx/nginx.conf.default $BUILD_DIR/.heroku/php/etc/nginx/nginx.conf
