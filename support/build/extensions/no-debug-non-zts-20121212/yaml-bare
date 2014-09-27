@@ -10,7 +10,6 @@ set -o pipefail
 set -eux
 
 DEFAULT_VERSION="1.1.1"
-
 dep_version=${VERSION:-$DEFAULT_VERSION}
 dep_dirname=yaml-${dep_version}
 dep_archive_name=${dep_dirname}.tgz

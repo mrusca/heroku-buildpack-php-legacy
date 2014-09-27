@@ -35,6 +35,14 @@ pushd cphalcon/build
     # It also runs phpize, configure, make, and make install
     chmod +x ./install
     ./install
+
+    # php was a build dep, and it's in $OUT_PREFIX. nuke that, then make install so all we're left with is the extension
+    rm -rf ${OUT_PREFIX}/*
+
+    pushd 64bits
+        # Do a make install AGAIN
+        make install
+    popd
 popd
 
 echo "-----> Done."
