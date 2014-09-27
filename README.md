@@ -11,9 +11,18 @@
 
 Target platforms and builders:
 
-* [Heroku](https://heroku.com) and [cedar](https://devcenter.heroku.com/articles/cedar)
+* [Heroku](https://heroku.com) and [cedar-14](https://devcenter.heroku.com/articles/cedar)
 * [dokku](https://github.com/progrium/dokku) and [progrium/buildstep](https://github.com/progrium/buildstep)
 * [flynn](https://flynn.io/) and [flynn/slugrunner](https://github.com/flynn/flynn/tree/master/slugrunner)
+
+HHVM compatibility is not explicitly supported.
+
+#### Assets
+
+Assets can be built for Ubuntu 14.04 LTS (Heroku's `cedar-14`) or older versions of Ubuntu. But this buildpack
+will be tested against mostly 14.04.
+
+*If you switch between Ubuntu versions, you may find that your compiled assets will no longer work.*
 
 ## Differences from the offical upstream buildpack
 
