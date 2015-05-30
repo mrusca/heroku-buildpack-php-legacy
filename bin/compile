@@ -53,12 +53,14 @@ source $BP_DIR/bin/util/common.sh
 source $BP_DIR/bin/util/newrelic.sh
 source $BP_DIR/bin/util/blackfire.sh
 
+# if this is set it prevents Git clones (e.g. for Composer installs from source) during the build in some circumstances, and it is set in SSH Git deploys to Heroku
+unset GIT_DIR
+
 export_env_dir "$ENV_DIR" '^[A-Z_][A-Z0-9_]*$' '^(HOME|PATH|GIT_DIR|CPATH|CPPATH|LD_PRELOAD|LIBRARY_PATH|LD_LIBRARY_PATH|STACK|S3_URL|RTVS_URL|REQUEST_ID)$'
 
 BUILDPACK_URL=${BUILDPACK_URL:-} # Anvil has none
-BUILDPACK_BRANCH=$(expr "$BUILDPACK_URL" : '^.*/heroku-buildpack-php#\(..*\)$' || expr "$BUILDPACK_URL" : '^.*/heroku-buildpack-php\.git#\(..*\)$' || true)
+BUILDPACK_BRANCH=$(expr "$BUILDPACK_URL" : '^.*/heroku-buildpack-php#\(..*\)$' || expr "$BUILDPACK_URL" : '^.*/heroku-buildpack-php\.git#\(..*\)$' || true) # POSIX expr doesn't understand ".+" or "(\.git)?"
 BUILDPACK_BRANCH=${BUILDPACK_BRANCH:-master}
-BUILDPACK_OWNER=$(expr "$BUILDPACK_URL" : '^.*/\(..*\)/heroku-buildpack-php' || true)
 
 if [[ "$BUILDPACK_BRANCH" != v* && "$BUILDPACK_BRANCH" != "master" ]]; then
     S3_URL="develop"
@@ -173,9 +175,9 @@ fi
 status "Installing system packages..."
 
 # we need to run things in here, set it up!
-if [[ ! -d /app/.heroku ]]; then
-    ln -s $BUILD_DIR/.heroku /app/.heroku
-fi
+mkdir -p /app/.heroku
+ln -s $BUILD_DIR/.heroku/php /app/.heroku/php
+
 export PATH=/app/.heroku/php/bin:$PATH
 
 if [[ "${PHP_VERSION}" ]]; then
@@ -317,8 +319,8 @@ fi
 # no need for the token to stay around in the env
 unset COMPOSER_GITHUB_OAUTH_TOKEN
 
-# install dependencies
-composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction 2>&1 | indent
+# install dependencies unless composer.json is completely empty (in which case it'd talk to packagist.org which may be slow and is unnecessary)
+cat composer.json | python -c 'import sys,json; sys.exit(not json.load(sys.stdin));' && composer install --no-dev --prefer-dist --optimize-autoloader --no-interaction 2>&1 | indent
 
 composer show --installed heroku/heroku-buildpack-php &> /dev/null && error "Your composer.json requires 'heroku/heroku-buildpack-php'.
 This package may only be used as a dependency in 'require-dev'!"
