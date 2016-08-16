@@ -1,11 +1,11 @@
-# Iskandar's Fork
+# Legacy Fork
 
 ## Goals
 
 * more extensions
 * more convenience when building and using your own support assets
 * compatibility with non-Heroku platforms
-* staying in sync with upstream
+* compatibility with private legacy apps
 
 ### Compatibility
 
@@ -26,6 +26,14 @@ will be tested against mostly 14.04.
 
 ## Differences from the offical upstream buildpack
 
+### Legacy
+
+This is based off of an older fork of the official buildpack. The official buildpack utilises a different structure
+and many other features that have been added since our parent fork was last updated. While it would be ideal to 
+base our fork of off the official upstream, the author cannot currently get PHP to compile correctly with `pdo_dblib`.
+However, in order to ease development, certain features have been ported from the official buildpack - notably
+a Dockerfile for use in compilation of binaries etc.
+
 ### `compile`
 
 Allow for 'in-place' compilation - useful for local development environment usage.
@@ -45,7 +53,7 @@ Extensions:
 
 * [igbinary](https://github.com/igbinary/igbinary)
 * [libevent](http://php.net/libevent)
-* [phalcon](phalconphp.com) (older v1.2.3 as default)
+* [phalcon](phalconphp.com) (older v1.3.4 as default)
 * [yaml](http://php.net/manual/en/book.yaml.php)
 
 ### nginx
@@ -78,46 +86,38 @@ Please refer to [Dev Center](https://devcenter.heroku.com/categories/php) for fu
 
 The folder `support/build` contains [Bob](http://github.com/kennethreitz/bob-builder) build scripts for all binaries and dependencies.
 
-To get started with it, create a Python app (*Bob* is a Python application) on Heroku inside a clone of this repository, and set your S3 config vars:
+#### Building the Docker Image
+
+**After every change to your formulae, perform the following** from the root of the Git repository (not from `support/build/_docker/`):
+
+    $ docker build --tag heroku-php-build-cedar-14 --file $(pwd)/support/build/_docker/cedar-14.Dockerfile .
+
+#### Configuration
+
+File `env.default` contains a list of required env vars, some with default values. You can modify it with the values you desire, or pass them to `docker run` using `--env`.
+
+Out of the box, you'll likely want to change `S3_BUCKET` and `S3_PREFIX` to match your info. Instead of setting `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` in that file, it is recommended to pass them to `docker run` through the environment, or explicitly using `--env`, in order to prevent accidental commits of credentials.
+
+#### Using the Docker Image
+
+From the root of the Git repository (not from `support/build/_docker/`):
+
+    docker run --tty --interactive --env-file=support/build/_docker/env.default heroku-php-build-cedar-14 /bin/bash
+
+That runs with values from `env.default`; if you need to pass e.g. `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` because they are not already in your environment, do either:
+
+    AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... docker run --tty --interactive --env-file=support/build/_docker/env.default heroku-php-build-cedar-14 /bin/bash
+
+or
+
+    docker run --tty --interactive --env-file=support/build/_docker/env.default -e AWS_ACCESS_KEY_ID=... -e AWS_SECRET_ACCESS_KEY=... heroku-php-build-cedar-14 /bin/bash
+
+You then have a shell where you can run `bob build` and so forth.
 
 ```term
-$ git clone git@github.com:iskandar/heroku-buildpack-php.git
-$ cd heroku-buildpack-php
-$ heroku login
-$ heroku create --buildpack https://github.com/heroku/heroku-buildpack-python
-$ git push heroku master
-$ heroku ps:scale web=0
-$ heroku config:set WORKSPACE_DIR=/app/support/build
-$ heroku config:set AWS_ACCESS_KEY_ID=<your_aws_key>
-$ heroku config:set AWS_SECRET_ACCESS_KEY=<your_aws_secret>
-$ heroku config:set S3_BUCKET=<your_s3_bucket_name>
-$ heroku config:set S3_PREFIX=<optional_s3_subfolder_to_upload_to>
-```
-
-Then, shell into an instance and run a build by giving the name of the formula inside `support/build`:
-
-```term
-$ heroku run bash
-Running `bash` attached to terminal... up, run.6880
-~ $ bob build php-5.5.11RC1
-
-Fetching dependencies... found 2:
-  - libraries/zlib
-  - libraries/libmemcached
-Building formula php-5.5.11RC1:
-    === Building PHP
-    Fetching PHP v5.5.11RC1 source...
-    Compiling PHP v5.5.11RC1...
+$ bob build php-5.6.24
 ```
 
 If this works, run `bob deploy` instead of `bob build` to have the result uploaded to S3 for you.
 
-To speed things up drastically, it'll usually be a good idea to `heroku run bash --size PX` instead.
-
 If the dependencies are not yet deployed, you can do so by e.g. running `bob deploy libraries/zlib`.
-
-### Hacking
-
-To work on this buildpack, fork it on Github. You can then use [Anvil with a local buildpack](https://github.com/ddollar/anvil-cli#iterate-on-buildpacks-without-pushing-to-github) to easily iterate on changes without pushing each time.
-
-Alternatively, you may push changes to your fork (ideally in a branch if you'd like to submit pull requests), then create a test app with `heroku create --buildpack <your-github-url#branch>` and push to it.
